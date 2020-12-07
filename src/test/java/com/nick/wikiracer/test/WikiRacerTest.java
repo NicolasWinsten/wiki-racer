@@ -1,0 +1,73 @@
+package com.nick.wikiracer.test;
+
+import java.util.List;
+
+import com.nick.wikiracer.WikiRacer;
+import org.junit.Test;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestMethodOrder;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+
+/**
+ * Cursory tests. Not comprehensive at all.
+ * Tests speed of WikiRacer, which will obviously change depending on where and when this is run.
+ * @author Nicolas Winsten
+ *
+ */
+@TestMethodOrder(OrderAnnotation.class)
+public class WikiRacerTest {
+
+    private static String[] inputs = new String[] {
+            "Chimpanzee:::Kevin_Bacon",
+            "Emu:::Stanford_University",
+            "Crab:::Metaphysical_poets",
+            "Brarup_Church:::The_Hunting_of_the_Snark",
+            "Jimmy_Neutron:_Boy_Genius:::Ice_shanty",
+            // these next input articles are simply what I got from /wiki/Special:Random
+            "Latvia_at_the_1992_Summer_Olympics:::Thermae",
+            "Tobiasz_Musielak:::H._Lawrence_Hinkley",
+            "Cát_Bà_Island:::Fairystone_Farms_Wildlife_Management_Area",
+            "Miss_Teen_USA_2006:::Ebbsfleet_Valley",
+            "Ma_Zhi:::La_Vénus_d%27Ille",
+            "Sandy_Ojang_Onor:::Otto_Christopher_von_Munthe_af_Morgenstierne"
+    };
+
+    /**
+     * Run this after all other tests
+     */
+    @Test
+    public void testFindWikiLadder() {
+        for (String args : inputs) {
+            String[] input = args.split(":::");
+            race(input[0], input[1]);
+            race(input[1], input[0]);
+        }
+    }
+
+    @Test
+    @Order(1)
+    public void testOnSameLink() {
+        List<String> path = race("Déjà_vu", "Déjà_vu");
+        assertFalse(path.contains(null));
+        assertEquals(path.size(), 2);
+    }
+
+    /**
+     * Test WikiRacer on given input.
+     * @param source
+     * @param dest
+     */
+    private static List<String> race(String source, String dest) {
+        System.out.println(source + " to " + dest + ":");
+        long start = System.nanoTime();
+        WikiRacer r = new WikiRacer();
+        List<String> path = r.findWikiLadder(source, dest);
+        int time = (int) ((System.nanoTime() - start)/Math.pow(10,9));
+        System.out.printf("%s\nin %d seconds%n", path, time);
+        return path;
+    }
+
+}
