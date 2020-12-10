@@ -23,7 +23,7 @@ You can download the jar from the packages section and just place it into your p
 ```
 After that is done, here is how you use WikiRacer:
 ```java
-import com.nick.wikiracer.WikiRacer
+import com.nick.wikiracer.WikiRacer;
 .
 .
 .
