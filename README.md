@@ -16,14 +16,14 @@ This project was adapted from an undergraduate assignment I was given in an Intr
 You can download the jar from the packages section and just place it into your project. Alternatively, if you have a Maven project that is hooked up to Github Packages, then you can add this to your pom.xml:
 ```java
 <dependency>
-  <groupId>nicolaswinsten</groupId>
+  <groupId>com.nicolaswinsten</groupId>
   <artifactId>wiki-racer</artifactId>
   <version>1.0</version>
 </dependency>
 ```
 After that is done, here is how you use WikiRacer:
 ```java
-import com.nick.wikiracer.WikiRacer;
+import com.nicolaswinsten.wikiracer.WikiRacer;
 .
 .
 .
