@@ -1,4 +1,4 @@
-package com.nick.wikiracer;
+package com.nicolaswinsten.wikiracer;
 // NOTE //////////////////////////////////////
 /**
  * This file was ripped from MER-C's wiki bot framework: https://github.com/MER-C/wiki-java.

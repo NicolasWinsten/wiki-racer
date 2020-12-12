@@ -1,4 +1,4 @@
-package com.nick.wikiracer;
+package com.nicolaswinsten.wikiracer;
 
 import java.io.IOException;
 import java.io.InputStream;

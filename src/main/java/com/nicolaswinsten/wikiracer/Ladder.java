@@ -1,4 +1,4 @@
-package com.nick.wikiracer;
+package com.nicolaswinsten.wikiracer;
 
 import java.util.Collections;
 import java.util.LinkedList;
