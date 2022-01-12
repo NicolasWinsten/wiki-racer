@@ -10,7 +10,7 @@ import java.util.Set;
  * This class is a bot that can play the WikiGame <br>
  * <br>
  * Example: WikiRacer.findWikiLadder("Emu", "Stanford_University") should
- * return:<br>
+ * return something like:<br>
  * [Emu, Food_and_drug_adminstration, Duke_University, Stanford_University] <br>
  * <br>
  * The ladder returned here because there is a wiki link a
@@ -29,10 +29,6 @@ public class WikiRacer {
      * Accessor to Wikipedia
      */
     private final WikiScraper scraper;
-    /**
-     * Maximum number of API calls allowed for each query
-     */
-    private final int queryLimit;
 
     /**
      * Minimum number of pages referencing a title to consider that title to be a
@@ -40,8 +36,9 @@ public class WikiRacer {
      */
     private final int anchorThreshold;
 
-    private static final int DEFAULT_QUERY_LIMIT = 30;
+    private static final int DEFAULT_QUERY_LIMIT = 500;
     private static final int DEFAULT_ANCHOR_THRESHOLD = 1000;
+    private static final int DEFAULT_FETCH_LIMIT = 2;
 
     /**
      * Construct a WikiRacer that uses the given parameters
@@ -51,23 +48,22 @@ public class WikiRacer {
      * @param anchorThreshold minimum popularity for a page to be considered a
      *                        sufficient anchor
      */
-    public WikiRacer(int queryLimit, int anchorThreshold) {
-        if (queryLimit < 1 || anchorThreshold < 1)
-            throw new IllegalArgumentException("Parameters queryLimit and anchorThreshold must be positive");
+    public WikiRacer(int queryLimit, int anchorThreshold, int fetchLimit) {
+        if (queryLimit < 1 || anchorThreshold < 1 || fetchLimit < 1)
+            throw new IllegalArgumentException("Parameters queryLimit and anchorThreshold and fetchLimit must be positive");
 
         if (queryLimit * 500 < anchorThreshold)
             throw new IllegalArgumentException("Given query limit must be able to achieve anchor threshold");
 
-        this.queryLimit = queryLimit;
         this.anchorThreshold = anchorThreshold;
-        scraper = new WikiScraper(queryLimit);
+        scraper = new WikiScraper(queryLimit, fetchLimit);
     }
 
     /**
      * Construct WikiRacer with default parameters
      */
     public WikiRacer() {
-        this(DEFAULT_QUERY_LIMIT, DEFAULT_ANCHOR_THRESHOLD);
+        this(DEFAULT_QUERY_LIMIT, DEFAULT_ANCHOR_THRESHOLD, DEFAULT_FETCH_LIMIT);
     }
 
     /**
@@ -103,12 +99,9 @@ public class WikiRacer {
 
         // create priority queue that will order prospective anchors by their popularity
         // (number of pages linking to them)
-        PriorityQueue<WikiLadder> q = new PriorityQueue<WikiLadder>(
-                Comparator.comparing(WikiLadder::getUpperRung, (s1, s2) -> Integer.compare(getLinksTo(s2).size(), getLinksTo(s1).size())));
+        PriorityQueue<WikiLadder> q = new PriorityQueue<>(
+                Comparator.comparing(WikiLadder::getUpperRung, (s1, s2) -> Integer.compare(scraper.popularity(s2), scraper.popularity(s1))));
         q.add(ladder);
-
-        Set<String> visited = new HashSet<String>();
-        visited.add(ladder.getUpperRung());
 
         while (!q.isEmpty()) {
             WikiLadder bestSoFar = q.remove();
@@ -128,12 +121,12 @@ public class WikiRacer {
                 if (newLadder.isAnchored())
                     return newLadder;
 
-                visited.add(rung);
                 q.add(newLadder);
             }
         }
 
-        throw new RuntimeException(String.format("Ladder %s could not be anchored.", ladder.toString()));
+        // if the given ladder could not be anchored, just return the original ladder
+        return ladder;
     }
 
     /**
@@ -154,9 +147,9 @@ public class WikiRacer {
         // completed path
         Set<String> net = getLinksTo(ladder.getUpperRung());
 
-        PriorityQueue<WikiLadder> q = new PriorityQueue<WikiLadder>();
+        PriorityQueue<WikiLadder> q = new PriorityQueue<>();
         // set to keep track of already visited pages
-        Set<String> visited = new HashSet<String>();
+        Set<String> visited = new HashSet<>();
         visited.add(ladder.getLowerRung());
         q.add(ladder);
 
@@ -267,7 +260,6 @@ public class WikiRacer {
                 proximity = scraper.linksInCommon(getLowerRung(), getUpperRung());
         }
 
-        @Override
         /**
          * A WikiLadder is complete if all its wikilinks all chain together
          * successfully.
@@ -275,6 +267,7 @@ public class WikiRacer {
          * @return True if this Ladder represents a complete sequence of Rungs that all
          *         link together.
          */
+        @Override
         public boolean isComplete() {
             // If start and destination are equal, Ladder is complete
             if (start.equalsIgnoreCase(end))
@@ -285,13 +278,14 @@ public class WikiRacer {
             return canLinkTo(getLowerRung(), getUpperRung());
         }
 
-        @Override
+
         /**
          * defines natural ordering of WikiLadder objects to be descending order by
          * Ladder "completeness". A Ladder that is closer to being finished is ordered
          * before a Ladder that is less complete. For Ladders that are equally complete,
          * order by height (shortest first).
          */
+        @Override
         public int compareTo(WikiLadder o) {
             if (this.proximity > o.proximity)
                 return -1;
@@ -301,7 +295,6 @@ public class WikiRacer {
                 return Integer.compare(this.height(), o.height());
         }
 
-        @Override
         /**
          * Returns true if the given source wikipage title contains a wikilink to the
          * dest title page
@@ -310,40 +303,32 @@ public class WikiRacer {
          * @param dest
          * @return true if source directly links to dest
          */
+        @Override
         protected boolean canLinkTo(String source, String dest) {
             return scraper.hasLinkTo(source, dest);
         }
 
-        @Override
         /**
          * Add new link on top of the links built up from the source link for this
          * WikiLadder
          *
          * @param title Wikipage title to add to this WikiLadder
          */
+        @Override
         public void addLowerRung(String title) {
             super.addLowerRung(title);
             updateProximity();
         }
 
-        @Override
         /**
          * Add new link to the bottom of the links connecting to the end link
          *
          * @param title Wikipage title to add to this WikiLadder
          */
+        @Override
         public void addUpperRung(String title) {
             super.addUpperRung(title);
             updateProximity();
-        }
-
-        /**
-         * Return the "completeness" of the WikiLadder
-         *
-         * @return number of links in common between the lower title and upper title
-         */
-        public int getProximity() {
-            return proximity;
         }
 
         /**

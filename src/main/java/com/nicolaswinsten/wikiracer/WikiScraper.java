@@ -1,8 +1,13 @@
 package com.nicolaswinsten.wikiracer;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,42 +20,20 @@ import java.util.regex.Pattern;
  * Utility class for pulling wikilinks from MediaWiki or reading wikilinks
  * directly off the html of a wikipage
  *
- * <br>
- * <br>
- * NOTE:<br>
- * This class utilizes the Wiki class from MER-C's wiki bot framework. I am
- * using this class to avoid working with the MediaWiki API directly, although
- * that probably would have ended up being less of a hassle than digging through
- * and modifying MER-C's huge Wiki class to fit my needs. <br>
- * <br>
- * Beforehand, I was using fastily's jwiki library which was much easier to
- * muddle through, but it was missing an important functionality for me that
- * MER-C did provide. I wanted to be able to make a limiting query whatLinksHere
- * on MediaWiki which gives all the pages containing a link to a given title.
- * MediaWiki only returns 500 results at a time, so you would have to call the
- * API about 1000 times in order to retrieve all the articles referencing the
- * United States for example. MER-C's Wiki class with some tweaking allowed for
- * me to make a query for whatLinksHere using a limit on API calls. Since I only
- * needed one piece of MER-C's 9-thousand-line Wiki class, I just ripped the
- * file, stripped it down, and modified it to fit my needs. Because of this, I
- * expect it to break at some point in the future, at which point I will have to
- * create my own MediaWiki accessor.
  *
  * @author Nicolas Winsten
- * @see <a href="https://github.com/MER-C/wiki-java">MER-C's wiki bot
- *      framework</a>
- * @see <a href="https://github.com/fastily/jwiki">jwiki library</a>
  */
 class WikiScraper {
+
     /**
-     * MediaWiki accesspoint
+     * Limit results from the mediawiki api. max is 500
      */
-    private final Wiki w = Wiki.newSession("en.wikipedia.org");
+    private final int queryLimit;
 
     /**
      * Maximum number of API calls allowed for one query
      */
-    private int queryLimit;
+    private final int fetchLimit;
 
     /**
      * Mapping of Wikipages to the Set of all the wikilinks on their page.
@@ -71,32 +54,18 @@ class WikiScraper {
      */
     private final Map<String, Set<String>> linksTo;
 
-    /**
-     * Mapping of wikipages to all the pages that redirect to it.
-     *
-     * Key: String wikipage title
-     *
-     * Value: Set of String title of wikipages that redirect to key page
-     */
-    private final Map<String, Set<String>> redirectsTo;
 
     /**
      * Construct WikiScraper
      *
-     * @param maxQueryLimit number of API calls allotted to each query
+     * @param maxQueryLimit limit results of API query
+     * @param maxFetchLimit limit number of API requests for one query
      */
-    public WikiScraper(int maxQueryLimit) {
+    public WikiScraper(int maxQueryLimit, int maxFetchLimit) {
         queryLimit = maxQueryLimit;
-        linksOn = new HashMap<String, Set<String>>();
-        linksTo = new HashMap<String, Set<String>>();
-        redirectsTo = new HashMap<String, Set<String>>();
-    }
-
-    /**
-     * Construct WikiScraper with no limit on queries
-     */
-    public WikiScraper() {
-        this(Integer.MAX_VALUE);
+        fetchLimit = maxFetchLimit;
+        linksOn = new HashMap<>();
+        linksTo = new HashMap<>();
     }
 
     /**
@@ -155,27 +124,6 @@ class WikiScraper {
     }
 
     /**
-     * Returns all the redirects to the given title.
-     *
-     * @param title String title of wikipage
-     * @return All redirect titles that go to the given title
-     */
-    public Set<String> redirectsTo(String title) {
-        if (redirectsTo.containsKey(title))
-            return Collections.unmodifiableSet(redirectsTo.get(title));
-
-        Set<String> redirects = queryRedirects(title);
-
-        for (String r : redirects)
-            // we consider a redirect to link to all the same stuff as its resolved title
-            linksOn.put(r, getLinksOn(title));
-
-        redirectsTo.put(title, redirects);
-
-        return Collections.unmodifiableSet(redirects);
-    }
-
-    /**
      * Returns a set of wikipages that contain a link to the given page including
      * redirects.
      *
@@ -188,10 +136,7 @@ class WikiScraper {
             return Collections.unmodifiableSet(linksTo.get(title));
 
         // this query does not include pages containing redirects to the desired page
-        Set<String> links = queryWhatLinksHere(title, queryLimit);
-
-        // so we query for all the redirects and add them
-        links.addAll(redirectsTo(title));
+        Set<String> links = queryWhatLinksHere(title);
 
         linksTo.put(title, links);
 
@@ -220,8 +165,7 @@ class WikiScraper {
     public int popularity(String title) {
         // subtract number of redirects that the given title has from total links to the
         // given title because getLinksTo includes redirects
-        return (queryLimit == Integer.MAX_VALUE) ? getLinksTo(title).size() - redirectsTo(title).size()
-                : queryWhatLinksHere(title, Integer.MAX_VALUE).size() - queryRedirects(title).size();
+        return getLinksTo(title).size();
     }
 
     /**
@@ -266,12 +210,11 @@ class WikiScraper {
      * @return String html of that wiki page
      */
     private static String fetchHTML(String link) {
-        StringBuffer buffer = null;
+        StringBuilder buffer = new StringBuilder();
         try {
             URL url = new URL(getURL(encodeTitle(link)));
             InputStream is = url.openStream();
             int ptr = 0;
-            buffer = new StringBuffer();
             while ((ptr = is.read()) != -1) {
                 buffer.append((char) ptr);
             }
@@ -301,7 +244,7 @@ class WikiScraper {
      */
     private static Set<String> scrapeHTML(String html) {
         // match wikilinks to pages of namespace 0 (normal article pages)
-        Set<String> allMatches = new HashSet<String>();
+        Set<String> allMatches = new HashSet<>();
         Matcher m = Pattern.compile("<a href=\"/wiki/([^:\"]+)\"").matcher(html);
         while (m.find()) {
             allMatches.add(decodeTitle(m.group(1).replaceAll("#.*", "")));
@@ -312,7 +255,7 @@ class WikiScraper {
     private static final Map<String, String> encodings;
     private static final Map<String, String> decodings;
     static { // create mappings for decoder and encoder
-        Map<String, String> map = new HashMap<String, String>();
+        Map<String, String> map = new HashMap<>();
         map.put(" ", "_");
         map.put("!", "%21");
         map.put("\"", "%22");
@@ -331,7 +274,7 @@ class WikiScraper {
         map.put("–", "%E2%80%93");
         encodings = Collections.unmodifiableMap(map);
 
-        map = new HashMap<String, String>();
+        map = new HashMap<>();
         for (String key : encodings.keySet())
             map.put(encodings.get(key), key);
 
@@ -356,7 +299,6 @@ class WikiScraper {
     /**
      * Reverses the percent encoding of encodeTitle()
      *
-     * @param title
      * @return decoded version of the percent encoded title
      */
     public static String decodeTitle(String title) {
@@ -367,31 +309,70 @@ class WikiScraper {
 
     /**
      * @param title Wikipedia page title
-     * @param limit max number of API calls before returning
      * @return Set of pages linking to the given title
      */
-    private Set<String> queryWhatLinksHere(String title, int limit) {
-        try {
-            return w.whatLinksHere(title, limit, 0);
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("Something went wrong querying whatLinksHere");
-            return new HashSet<String>();
-        }
+    private Set<String> queryWhatLinksHere(String title) {
+        Map<String, String> params = new HashMap<>();
+        params.put("action", "query");
+        params.put("prop", "linkshere");
+        params.put("lhprop", "title");
+        params.put("lhnamespace", "0");
+        params.put("lhshow", "!redirect");
+        params.put("lhlimit", String.valueOf(queryLimit));
+        params.put("titles", URLEncoder.encode(title, StandardCharsets.UTF_8));
+
+        int currFetchLimit = 0;
+        Set<String> links = new HashSet<>();
+        String continuePageId = null;
+        boolean batchComplete = true;
+        do {
+            JSONObject json = makeApiCall(params);
+            JSONObject page = json.getJSONObject("query").getJSONObject("pages");
+
+            JSONArray linkshere = page.getJSONObject(page.keys().next()).optJSONArray("linkshere");
+            if (linkshere == null) return links;
+
+            linkshere.forEach(
+                    s -> links.add(((JSONObject) s).getString("title"))
+            );
+
+            currFetchLimit++;
+            batchComplete = json.has("batchcomplete");
+
+            if (!batchComplete) {
+                continuePageId = json.getJSONObject("continue").getString("lhcontinue");
+                params.put("lhcontinue", continuePageId);
+            }
+        } while (currFetchLimit < fetchLimit && !batchComplete);
+
+        return links;
     }
 
-    /**
-     * @param title Wikipedia page title
-     * @return Set of pages redirecting to the given page
-     */
-    private Set<String> queryRedirects(String title) {
+
+    private static JSONObject makeApiCall(Map<String, String> params) {
+        String api = "https://en.wikipedia.org/w/api.php?";
+        params.put("format", "json");
+
+        String paramStr = params.keySet().stream().map(
+                k -> k + "=" + params.get(k)
+        ).reduce("", (s1, s2) -> s1 + "&" + s2);
+
+        StringBuilder buffer = new StringBuilder();
         try {
-            return w.whatRedirectsHere(title, 0);
+            URL url = new URL(api + paramStr);
+            InputStream is = url.openStream();
+            int ptr = 0;
+            while ((ptr = is.read()) != -1) {
+                buffer.append((char) ptr);
+            }
         } catch (IOException e) {
             e.printStackTrace();
-            System.out.println("Something went wrong querying Redirects");
-            return new HashSet<String>();
         }
+
+
+        return new JSONObject(buffer.toString());
     }
+
+
 
 }

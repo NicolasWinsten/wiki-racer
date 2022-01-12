@@ -13,9 +13,6 @@ import java.util.stream.Collectors;
  * Ladder, you can stack rungs onto the first rung or hang rungs under the last
  * rung until the two rungs in the center can close the gap.
  *
- *
- * @author Nicolas Winsten
- *
  */
 abstract class Ladder<R> {
     /**
