@@ -11,23 +11,4 @@ This game can be a competition to see who can create the optimal path with the l
 
 This project was adapted from an undergraduate assignment I was given in an Intro to Software Development course last year.  The task was to create a bot that mimics a human trying to find a path as quickly as possibly.  I thought the project was fun enough to continue improving it, and this is the result.
 
-## How To Use
-
-You can download the jar from the packages section and just place it into your project. Alternatively, if you have a Maven project that is hooked up to Github Packages, then you can add this to your pom.xml:
-```java
-<dependency>
-  <groupId>com.nicolaswinsten</groupId>
-  <artifactId>wiki-racer</artifactId>
-  <version>1.0</version>
-</dependency>
-```
-After that is done, here is how you use WikiRacer:
-```java
-import com.nicolaswinsten.wikiracer.WikiRacer;
-.
-.
-.
-WikiRacer r = new WikiRacer();
-List<String> path = r.findWikiLadder("Chimpanzee", "Kevin Bacon");
-```
 The above code will create a sequence of Wikipedia titles that connect [Chimpanzee](https://en.wikipedia.org/wiki/Chimpanzee) to [Kevin Bacon](https://en.wikipedia.org/wiki/Kevin_Bacon).
