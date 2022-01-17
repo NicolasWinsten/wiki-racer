@@ -25,9 +25,6 @@ import java.util.Set;
  */
 public class WikiRacer {
 
-    /**
-     * Accessor to Wikipedia
-     */
     private final WikiScraper scraper;
 
     /**
@@ -43,10 +40,11 @@ public class WikiRacer {
     /**
      * Construct a WikiRacer that uses the given parameters
      *
-     * @param queryLimit      maximum number of MediaWiki API calls allotted to each
-     *                        query
+     * @param queryLimit      limit number of results from MediaWiki api call (max 500)
      * @param anchorThreshold minimum popularity for a page to be considered a
      *                        sufficient anchor
+     *
+     * @param fetchLimit maximum number of MediaWiki API calls allotted to each query
      */
     public WikiRacer(int queryLimit, int anchorThreshold, int fetchLimit) {
         if (queryLimit < 1 || anchorThreshold < 1 || fetchLimit < 1)
@@ -105,6 +103,7 @@ public class WikiRacer {
 
         while (!q.isEmpty()) {
             WikiLadder bestSoFar = q.remove();
+            System.out.println("best anchor: " + bestSoFar);
             String upper = bestSoFar.getUpperRung();
 
             for (String rung : getLinksTo(upper)) {
@@ -156,6 +155,7 @@ public class WikiRacer {
         while (!q.isEmpty()) {
             // get the closest ladder's last wiki page
             WikiLadder bestSoFar = q.remove();
+            System.out.println("best so far: " + bestSoFar);
 
             // iterate through the neighboring wiki pages, and create new ladders
             // for each by adding each neighbor page as the last rung

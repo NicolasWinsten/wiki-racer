@@ -219,8 +219,7 @@ class WikiScraper {
                 buffer.append((char) ptr);
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
         }
         return buffer.toString();
     }
@@ -366,7 +365,7 @@ class WikiScraper {
                 buffer.append((char) ptr);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
         }
 
 

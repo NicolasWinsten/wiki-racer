@@ -8,7 +8,7 @@ import java.util.Map;
 public class WikiRacerTest {
 
 	public static void main(String[] args) {
-		testWithDifferentLimits();
+		testFindWikiLadders(2, 500);
 	}
 
 	private static final String[] inputs = new String[] {
