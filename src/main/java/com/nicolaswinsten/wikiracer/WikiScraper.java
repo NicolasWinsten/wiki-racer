@@ -277,6 +277,12 @@ class WikiScraper {
         map.put("\\", "%5C");
         map.put("`", "%60");
         map.put("–", "%E2%80%93");
+        map.put("ó", "%C3%B3");
+        map.put("í", "%C3%AD");
+        map.put("ñ", "%C3%B1");
+        map.put("ò", "%C3%B2");
+        map.put("é", "%C3%A9");
+        map.put("á", "%C3%A1");
         encodings = Collections.unmodifiableMap(map);
 
         map = new HashMap<>();
