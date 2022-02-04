@@ -190,7 +190,13 @@ class WikiScraper {
         // title is a redirect then MediaWiki will only return one valid link (the page
         // it redirects to). By scraping the html instead, we get the links on its
         // redirection
-        String html = fetchHTML(title);
+        String html = "";
+        try {
+            html = fetchHTML(title);
+        }
+        catch (RuntimeException e) {
+            System.out.println("Something went wrong fetching " + title);
+        }
         Set<String> links = scrapeHTML(html);
         links.add(title); // ensure that we consider a title as linking to itself
         links.remove("Main Page"); // we don't consider Main Page

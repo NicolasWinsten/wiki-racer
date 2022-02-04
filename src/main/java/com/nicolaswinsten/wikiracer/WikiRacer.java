@@ -92,7 +92,7 @@ public class WikiRacer {
      * @return anchored version of the given ladder.
      */
     private WikiLadder anchor(WikiLadder ladder) {
-        if (ladder.isAnchored())
+        if (ladder.isAnchored() || ladder.isComplete())
             return ladder;
 
         // create priority queue that will order prospective anchors by their popularity
