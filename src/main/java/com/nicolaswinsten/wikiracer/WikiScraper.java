@@ -6,13 +6,10 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -225,6 +222,7 @@ class WikiScraper {
                 buffer.append((char) ptr);
             }
         } catch (Exception e) {
+            //e.printStackTrace();
             throw new RuntimeException(e.getMessage());
         }
         return buffer.toString();
@@ -257,41 +255,6 @@ class WikiScraper {
         return allMatches;
     }
 
-    private static final Map<String, String> encodings;
-    private static final Map<String, String> decodings;
-    static { // create mappings for decoder and encoder
-        Map<String, String> map = new HashMap<>();
-        map.put(" ", "_");
-        map.put("!", "%21");
-        map.put("\"", "%22");
-        map.put("&", "%26");
-        map.put("'", "%27");
-        map.put("*", "%2A");
-        map.put("+", "%2B");
-        map.put(",", "%2C");
-        map.put("/", "%2F");
-        map.put(";", "%3B");
-        map.put("=", "%3D");
-        map.put("?", "%3F");
-        map.put("@", "%40");
-        map.put("\\", "%5C");
-        map.put("`", "%60");
-        map.put("–", "%E2%80%93");
-        map.put("ó", "%C3%B3");
-        map.put("í", "%C3%AD");
-        map.put("ñ", "%C3%B1");
-        map.put("ò", "%C3%B2");
-        map.put("é", "%C3%A9");
-        map.put("á", "%C3%A1");
-        encodings = Collections.unmodifiableMap(map);
-
-        map = new HashMap<>();
-        for (String key : encodings.keySet())
-            map.put(encodings.get(key), key);
-
-        decodings = Collections.unmodifiableMap(map);
-    }
-
     /**
      * Takes a title and percent encodes it to match the standard wikipedia naming
      * style
@@ -300,11 +263,10 @@ class WikiScraper {
      * @return percent encoded title
      */
     public static String encodeTitle(String title) {
-        for (String ch : encodings.keySet())
-            title = title.replace(ch, encodings.get(ch));
-        // replace any % signs with %25 but only if it isnt already part of a percent
-        // encoded character
-        return title.replaceAll("%(?![0-9a-fA-F][0-9a-fA-F])", "%25");
+        String[] encodedParts = Arrays.stream(title.split(" "))
+                .map(w -> URLEncoder.encode(w, StandardCharsets.UTF_8))
+                .toArray(String[]::new);
+        return String.join("_", encodedParts);
     }
 
     /**
@@ -313,9 +275,10 @@ class WikiScraper {
      * @return decoded version of the percent encoded title
      */
     public static String decodeTitle(String title) {
-        for (String ch : decodings.keySet())
-            title = title.replace(ch, decodings.get(ch));
-        return title.replaceAll("%25", "%");
+        String[] encodedParts = Arrays.stream(title.split("_"))
+                .map(w -> URLDecoder.decode(w, StandardCharsets.UTF_8))
+                .toArray(String[]::new);
+        return String.join(" ", encodedParts);
     }
 
     /**
